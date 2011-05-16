@@ -41,6 +41,8 @@
 #define RIGHTWARD   15
 #define HOLDING     16
 
+enum state { user, wandering, higher, lower, leftward, rightward, holding };
+enum dir   { nodir = 0, left = 2, up = 3, right = 4, down = 5 };
 
 int currentState;
 int currentDir  = NODIR;
@@ -147,13 +149,14 @@ long checkAudio()
 
 void loop()
 {
-	delay(500);
-	clock++;                                 // CLOCK TICK
+	clock++;                            // CLOCK TICK
 
-	sampleAnalog();                          // Sample Audio Activity
+	sampleAnalog();                     // Sample Audio Activity
 
-	if ( (clock % 10) == 0 )                // Compute deviation
+	if ( (clock % 10) == 0 )            // Compute deviation
 		currentAudio = checkAudio();
+
+	if ( (clock % 200) == 0) flash();
 
 	currentState = newState(currentState);
 	report(currentState);
@@ -200,7 +203,7 @@ void nudge(int dir)
 void flash()
 {
 	digitalWrite(13,HIGH);
-	delay(800);
+	delay(100);
 	digitalWrite(13,LOW);
 }
 
