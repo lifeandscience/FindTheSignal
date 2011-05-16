@@ -25,7 +25,9 @@
  * 
  */
 
-// DIRECTIONS
+int currentDir  = NODIR;
+
+// DIRECTIONS (currentDir value = control pin number)
 #define NODIR  0
 #define LEFT   2
 #define UP     3
@@ -45,7 +47,6 @@ enum state { user, wandering, higher, lower, leftward, rightward, holding };
 enum dir   { nodir = 0, left = 2, up = 3, right = 4, down = 5 };
 
 int currentState;
-int currentDir  = NODIR;
 int timeout     = 10;
 int holdtimeout = 12;
 int clock       = 0;
@@ -70,18 +71,16 @@ void report(int s);
 
 void setup()
 {
+int i;
    pinMode(13,OUTPUT);
    Serial.begin(115200);
-   for (int i=2; i<6; i++) 
+   for (i=2; i<6; i++) 
    {
 	pinMode(i, INPUT);
 	digitalWrite(i,HIGH);
    }
-   for (int i=0; i<10; i++) 
-   {
-	sensorValue[i] = analogRead(A0);
-	delay(100);
-   }
+   for (i=0; i<10; delay(20),i++) sampleAnalog();
+
    currentState = USER;
    audioThreshold  = 50;
    currentAudio = previousAudio = 0;
@@ -118,14 +117,13 @@ int status = 1;
 
 void sampleAnalog()
 {
-	if (sensorIndex < 10)
-		sensorValue[sensorIndex++] = analogRead(A0);
-	else
-		sensorIndex = 0;
+	if (sensorIndex > 9)
+		 sensorIndex = 0;
+	sensorValue[sensorIndex++] = analogRead(A0);
 }		
 
 /*
- * If we detect audio (standard deviation of analog input)
+ * If we detect audio (large deviation of analog input)
  * we will halt the seeking and listen to the audio.
  */
 
@@ -150,8 +148,8 @@ long checkAudio()
 void loop()
 {
 	clock++;                            // CLOCK TICK
-
 	sampleAnalog();                     // Sample Audio Activity
+	delay(500);
 
 	if ( (clock % 10) == 0 )            // Compute deviation
 		currentAudio = checkAudio();
