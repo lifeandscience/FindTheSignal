@@ -25,7 +25,6 @@
  * 
  */
 
-int currentDir  = NODIR;
 
 // DIRECTIONS (currentDir value = control pin number)
 #define NODIR  0
@@ -33,6 +32,8 @@ int currentDir  = NODIR;
 #define UP     3
 #define RIGHT  4
 #define DOWN   5
+
+int currentDir  = NODIR;
 
 // STATES
 #define USER        10
@@ -149,12 +150,12 @@ void loop()
 {
 	clock++;                            // CLOCK TICK
 	sampleAnalog();                     // Sample Audio Activity
-	delay(500);
+	delay(100);
 
 	if ( (clock % 10) == 0 )            // Compute deviation
 		currentAudio = checkAudio();
 
-	if ( (clock % 200) == 0) flash();
+	if ( (clock % 40) == 0) flashStatus();
 
 	currentState = newState(currentState);
 	report(currentState);
@@ -198,11 +199,22 @@ void nudge(int dir)
 	stop();
 }
 	
-void flash()
+void flash1()
 {
 	digitalWrite(13,HIGH);
 	delay(100);
 	digitalWrite(13,LOW);
+	delay(100);
+}
+
+void flashStatus()
+{
+int i = 0;
+	if (currentDir == LEFT)  i = 1;
+	if (currentDir == UP)    i = 2;
+	if (currentDir == RIGHT) i = 3;
+	if (currentDir == DOWN)  i = 4;
+	while(i-- > 0) flash1();
 }
 
 
