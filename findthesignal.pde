@@ -105,6 +105,7 @@ int i;
    currentAudio = previousAudio = 0;
 }
 
+int lastval;
 
 int checkJoystick()
 {
@@ -112,25 +113,28 @@ int status = 1;
 
 	if ( currentDir != NODIR )
 	{
-		pinMode(currentDir+7,OUTPUT);
 		digitalWrite(currentDir+7,LOW);
 	}
 
-//        Serial.print(digitalRead(2));
-//        Serial.print(digitalRead(3));
-//        Serial.print(digitalRead(4));
-//        Serial.println(digitalRead(5));
 
 	if (    digitalRead(LEFT)  == 0
 	     ||	digitalRead(UP)    == 0
 	     ||	digitalRead(RIGHT) == 0
 	     ||	digitalRead(DOWN)  == 0 ) status = 0;
 
+	     if (status != lastval)
+	     {
+	             Serial.print(digitalRead(2));
+	             Serial.print(digitalRead(3));
+	             Serial.print(digitalRead(4));
+		     Serial.println(digitalRead(5));
+             }
+	     lastval = status;
+
 	if (status == 1 && currentDir != NODIR)
 	{
           // Output was on and there's no user input,
           // So turn it back on.
-		pinMode(currentDir+7,INPUT);
 		digitalWrite(currentDir+7,HIGH);
 	}
 	return status;
@@ -192,7 +196,7 @@ void loop()
 	if (currentState == WANDERING)          // Occasionally
 	{                                       // change direction
 		drift--;
-		if (drift == 0)
+		if (drift <= 0)
 		{
 			move(random(2,6));
 			drift = CHANGE_DIRECTION + 10*random(2,6);
@@ -206,9 +210,8 @@ void loop()
 void move(int dir)
 {
 	stop();
-	pinMode(dir, OUTPUT);
-	digitalWrite(dir, LOW);
 	currentDir = dir;
+	digitalWrite(currentDir+7, HIGH);
 	Serial.print(dirname[currentDir]);Serial.print(" ");
 
 }
@@ -217,8 +220,7 @@ void stop()
 {
 	if (currentDir != NODIR)
 	{
-		pinMode(currentDir, INPUT);
-		digitalWrite(currentDir, LOW);
+		digitalWrite(currentDir+7, LOW);
 	}
 	currentDir = NODIR; 
 }
@@ -233,9 +235,9 @@ void nudge(int dir)
 void flash1()
 {
 	digitalWrite(13,HIGH);
-	delay(20);
+	delay(30);
 	digitalWrite(13,LOW);
-	delay(100);
+	delay(300);
 }
 
 void flashStatus()
@@ -302,7 +304,7 @@ int newState(int current)
 	{
 		nudge(UP);
 		currentAudio = checkAudio();
-		if (currentAudio > previousAudio)
+		if (currentAudio > (previousAudio + 1000))
 		{
 			previousAudio = currentAudio;
 			return HIGHER;
@@ -317,7 +319,7 @@ int newState(int current)
 	{
 		nudge(DOWN);
 		currentAudio = checkAudio();
-		if (currentAudio > previousAudio)
+		if (currentAudio > ( previousAudio + 1000))
 		{
 			previousAudio = currentAudio;
 			return LOWER;
@@ -332,7 +334,7 @@ int newState(int current)
 	{
 		nudge(LEFT);
 		currentAudio = checkAudio();
-		if (currentAudio > previousAudio)
+		if (currentAudio > (previousAudio + 1000))
 		{
 			previousAudio = currentAudio;
 			return LEFTWARD;
@@ -347,7 +349,7 @@ int newState(int current)
 	{
 		nudge(RIGHT);
 		currentAudio = checkAudio();
-		if (currentAudio > previousAudio)
+		if (currentAudio > ( previousAudio + 1000) )
 		{
 			previousAudio = currentAudio;
 			return RIGHTWARD;
