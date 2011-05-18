@@ -25,14 +25,25 @@
  * 
  */
 
-int currentDir  = NODIR;
-
 // DIRECTIONS (currentDir value = control pin number)
+
 #define NODIR  0
 #define LEFT   2
 #define UP     3
 #define RIGHT  4
 #define DOWN   5
+
+// currentDir value = control pin number
+
+int currentDir  = NODIR;
+
+#define LEFT_OUT     9
+#define UP_OUT      10
+#define RIGHT_OUT   11
+#define LEFT_OUT    12
+
+char *dirname[] = { "NODIR", "NODIR1","LEFT","UP","RIGHT","DOWN" };
+
 
 // STATES
 #define USER        10
@@ -43,24 +54,30 @@ int currentDir  = NODIR;
 #define RIGHTWARD   15
 #define HOLDING     16
 
+#define MIN_WANDER_TIME     90
+#define HOLD_TIME          240
+#define CHANGE_DIRECTION    20
+
 enum state { user, wandering, higher, lower, leftward, rightward, holding };
 enum dir   { nodir = 0, left = 2, up = 3, right = 4, down = 5 };
 
 int currentState;
-int timeout     = 10;
-int holdtimeout = 12;
+int timeout     = HOLD_TIME;
+int holdtimeout = HOLD_TIME;
 int clock       = 0;
-int drift       = 0;
+int drift       = CHANGE_DIRECTION;
 int wander      = 0;
 
 int sensorIndex = 0;
-long sensorValue[10];
+unsigned long sensorValue[10];
+
+#define THRESHOLD  4000
 
 long audioThreshold, currentAudio, previousAudio;
 long checkAudio();
 
 
-int check();
+int checkJoystick();
 int newState(int current);
 void report(int s);
 
@@ -77,24 +94,27 @@ int i;
    for (i=2; i<6; i++) 
    {
 	pinMode(i, INPUT);
-	digitalWrite(i,HIGH);
+	digitalWrite(i,LOW); // No pullup (high impedance?)
+	pinMode(i+7, OUTPUT);
+	digitalWrite(i+7,LOW);
    }
+
    for (i=0; i<10; delay(20),i++) sampleAnalog();
 
    currentState = USER;
-   audioThreshold  = 50;
+   audioThreshold  = THRESHOLD;
    currentAudio = previousAudio = 0;
 }
 
 
-int check()
+int checkJoystick()
 {
 int status = 1;
 
 	if ( currentDir != NODIR )
 	{
-		pinMode(currentDir, INPUT);
-		digitalWrite(currentDir, HIGH);
+		pinMode(currentDir+7,OUTPUT);
+		digitalWrite(currentDir+7,LOW);
 	}
 
 //        Serial.print(digitalRead(2));
@@ -102,15 +122,17 @@ int status = 1;
 //        Serial.print(digitalRead(4));
 //        Serial.println(digitalRead(5));
 
-	if (    digitalRead(2) == 0
-	     ||	digitalRead(3) == 0
-	     ||	digitalRead(4) == 0
-	     ||	digitalRead(5) == 0 ) status = 0;
+	if (    digitalRead(LEFT)  == 0
+	     ||	digitalRead(UP)    == 0
+	     ||	digitalRead(RIGHT) == 0
+	     ||	digitalRead(DOWN)  == 0 ) status = 0;
 
-	if (currentDir != NODIR)
+	if (status == 1 && currentDir != NODIR)
 	{
-		pinMode(currentDir, OUTPUT);
-		digitalWrite(currentDir, LOW);
+          // Output was on and there's no user input,
+          // So turn it back on.
+		pinMode(currentDir+7,INPUT);
+		digitalWrite(currentDir+7,HIGH);
 	}
 	return status;
 }
@@ -129,19 +151,28 @@ void sampleAnalog()
 
 long checkAudio()
 {
-   int average = 0;
-   for (int i=0; i<10; i++)
+   int i,average = 0;
+   for (i=0; i<10; i++)
 	average += sensorValue[i];
    average = average/10;
 
    long deviation;
    deviation = 0;
-   for (int i=0; i<10; i++)
+   for (i=0; i<10; i++)
    {
 	deviation += (sensorValue[i]-average)*(sensorValue[i]-average);
    }
-   if (deviation > 100) 
-   { Serial.print("("); Serial.print(deviation); Serial.print(")"); }
+
+   if (deviation > THRESHOLD)
+   {
+	Serial.println("");
+	for (i=0; i<10; i++)
+	{
+	 Serial.print("["); Serial.print(sensorValue[i]);Serial.print("]");
+	}
+	Serial.print("("); Serial.print(deviation); Serial.print(")");
+   }
+
    return deviation;
 }
 
@@ -149,22 +180,23 @@ void loop()
 {
 	clock++;                            // CLOCK TICK
 	sampleAnalog();                     // Sample Audio Activity
-	delay(500);
+	delay(100);
 
 	if ( (clock % 10) == 0 )            // Compute deviation
 		currentAudio = checkAudio();
 
-	if ( (clock % 200) == 0) flash();
+	if ( (clock % 20) == 0) flashStatus();
 
 	currentState = newState(currentState);
 	report(currentState);
 
 	if (currentState == WANDERING)          // Occasionally
 	{                                       // change direction
-		if (drift++ > 6)
+		drift--;
+		if (drift == 0)
 		{
 			move(random(2,6));
-			drift = 0;
+			drift = CHANGE_DIRECTION + 10*random(2,6);
 		}
 	}
 }
@@ -178,7 +210,8 @@ void move(int dir)
 	pinMode(dir, OUTPUT);
 	digitalWrite(dir, LOW);
 	currentDir = dir;
-	Serial.print(currentDir);Serial.print(" ");
+	Serial.print(dirname[currentDir]);Serial.print(" ");
+
 }
 
 void stop()         
@@ -186,7 +219,7 @@ void stop()
 	if (currentDir != NODIR)
 	{
 		pinMode(currentDir, INPUT);
-		digitalWrite(currentDir, HIGH);
+		digitalWrite(currentDir, LOW);
 	}
 	currentDir = NODIR; 
 }
@@ -198,11 +231,22 @@ void nudge(int dir)
 	stop();
 }
 	
-void flash()
+void flash1()
 {
 	digitalWrite(13,HIGH);
-	delay(100);
+	delay(20);
 	digitalWrite(13,LOW);
+	delay(100);
+}
+void flashStatus()
+{
+int i = 0;
+	if (currentDir == LEFT)  i = 1;
+	if (currentDir == UP)    i = 2;
+	if (currentDir == RIGHT) i = 3;
+	if (currentDir == DOWN)  i = 4;
+
+	while(i-- > 0) flash1();
 }
 
 
@@ -210,9 +254,9 @@ void flash()
 
 int newState(int current)
 {
-	if ( check() == 0 )        // Check for User Input
+	if ( checkJoystick() == 0 )   // Check for User Input
 	{
-		timeout = 10;   // Reset max timeout value (ms)
+		timeout = HOLD_TIME;  // Reset max timeout value (ms)
 		if (current != USER)
 			Serial.println("User is taking over");
 		current = USER;
@@ -228,12 +272,12 @@ int newState(int current)
 			currentAudio = previousAudio = 0;
 			return WANDERING;
 		}
-		Serial.println(timeout);
+//		Serial.println(timeout);
 		return USER;
 	}
 	else if ( current == WANDERING )
 	{
-		if (   wander > 8 )
+		if (   wander > MIN_WANDER_TIME )
 		{
 			wander = 0;
 			if (currentAudio > audioThreshold )
@@ -249,7 +293,7 @@ int newState(int current)
 		return WANDERING;
 	}
 	else if (   current == WANDERING
-                 && wander > 8
+                 && wander > MIN_WANDER_TIME
                  && currentAudio > audioThreshold )
 	{
 		previousAudio = currentAudio;
@@ -312,7 +356,7 @@ int newState(int current)
 		else
 		{
 			nudge(LEFT);
-			holdtimeout = 12;
+			holdtimeout = HOLD_TIME;
 			return HOLDING;
 		}
 	}
@@ -321,7 +365,7 @@ int newState(int current)
 		if (holdtimeout > 0) holdtimeout--;
 		if (holdtimeout == 0)
 		{
-			drift = 0;
+			drift = 1;
 			wander = 0;
 			currentAudio = previousAudio = 0;
 			return WANDERING;
